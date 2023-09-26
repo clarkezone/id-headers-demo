@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tailscaletest
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-tailscale
+  namespace: tailscaletest
+  labels:
+    app: flask-tailscale
+spec:
+  selector:
+    matchLabels:
+      app: flask-tailscale
+  replicas: 2 # tells deployment to run 2 pods matching the template
+  template:
+    metadata:
+      labels:
+        app: flask-tailscale
+    spec:
+      containers:
+      - name: flask-tailscale
+        image: registry.hub.docker.com/clarkezone/tsgunicorn:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DEMO_INVITE_LINK
+          value: https://login.tailscale.com/uinv/i0a92a2e8d2675c15
+        - name: TAILSCALE_URL
+          value: bar2
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-tailscale
+  namespace: tailscaletest
+spec:
+  ports:
+  - port: 8000
+  selector:
+    app: flask-tailscale
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flask-tailscale
+  namespace: tailscaletest
+spec:
+  ingressClassName: tailscale
+  tls: 
+  - hosts:
+    - "ts-flask-test"
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-tailscale
+            port:
+              number: 8000
